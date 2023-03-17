@@ -1,33 +1,46 @@
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
-
-const PORT = process.env.PORT || 4001;
-const PATH = path.resolve(__dirname, "data.json");
-
-console.log(PATH);
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  let RAW_matrixState = fs.readFileSync(PATH, { encoding: "utf-8" });
-  let matrixState = JSON.parse(RAW_matrixState);
-  res.status(200).json(matrixState);
+const PORT = process.env.PORT || 4001;
+const uri = process.env.URI || "";
+const id = process.env.ID || "";
+
+const StateSchema = new mongoose.Schema({
+  matrixState: [Number],
 });
+const State = mongoose.model("State", StateSchema);
 
-app.post("/", (req, res) => {
-  let RES_matrixState = req.body.matrixState;
+// main().catch((err) => console.log(err));
+main();
 
-  fs.writeFileSync(PATH, JSON.stringify(RES_matrixState, null, 2), {
-    encoding: "utf-8",
+async function main() {
+  await mongoose.connect(uri);
+
+  app.get("/", async (req, res) => {
+    let matrixStateDoc = await State.findById(id).exec();
+    // @ts-ignore
+    res.status(200).json(matrixStateDoc.matrixState);
   });
 
-  res.status(200).json(RES_matrixState);
-});
+  app.post("/", async (req, res) => {
+    let matrixState = req.body.matrixState;
+    console.log(matrixState);
+    let updatedMatrixStateDoc = await State.findByIdAndUpdate(
+      { _id: id },
+      { matrixState }
+    );
+    // @ts-ignore
+    res.status(200).json(updatedMatrixStateDoc.matrixState);
+  });
 
-app.listen(PORT, () => {
-  console.log(`Listening on ${PORT}`);
-});
+  app.listen(PORT, () => {
+    console.log(`Listening on ${PORT}`);
+  });
+}
